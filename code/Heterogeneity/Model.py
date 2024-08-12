@@ -40,12 +40,12 @@ class Model(Model):
             self.feedback = kwargs['feedback']
 
         if 'rho' not in kwargs:
-            self.rho = 0
+            self.rho = 0.5
         else:
             self.rho = round(kwargs['rho'], 2)
    
         if 'epsilon' not in kwargs:
-            self.epsilon = self.rho
+            self.epsilon = 1
         else:
             self.epsilon = round(kwargs['epsilon'], 2)
    
@@ -237,13 +237,7 @@ class Model(Model):
                 g = np.random.uniform(low = 0.0, high = 1.0, size = N)
      
         else:
-            g = np.random.uniform(low = 0.0, high = 1.0, size = N)
-   
-        if 'recruitment' in kwargs:
-            rec = [kwargs['recruitment']] * N
-        else:
-            rec = [True]*N
-   
+            g = np.random.uniform(low = 0.0, high = 1.0, size = N)   
 
         if self.rho >= 0:
             
