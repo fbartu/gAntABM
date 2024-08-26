@@ -285,6 +285,9 @@ class Model(Model):
                 # rec[idx_listen] = True
                 
             rec[idx_listen] = True
+            print('Number of LR: ', round(nLR * (self.epsilon)), '\n',
+                  'Number of SR: ', round(nSR * (self.epsilon)), '\n',
+                  'Total number of recruits: ', len(set(idx_listen)), flush = True)
         else:
             if self.rho < 0:
                 print('rho must be a parameter with value [0, 1]; setting default mot matrix for all individuals...', flush = True)
