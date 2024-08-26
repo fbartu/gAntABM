@@ -92,6 +92,7 @@ class Model(Model):
           # Food
         self.food_condition = food_condition
         self.init_food()
+        self.food_coords = [self.coords[i] for i in self.food_positions]
 
         self.keys = {'id': [self.agents[i].unique_id for i in self.agents],
                'g': [self.agents[i].g for i in self.agents]}
@@ -99,9 +100,11 @@ class Model(Model):
 # 		self.data = pd.DataFrame({'T': [], 'Frame': [],
 #    'N': [], 'Si_out': [], 'pos': [],
 #    'id_out': [], 'Si_in': []})
+#         self.data = {'T': [], 'Frame': [],
+#    'N': [], 'Si_out': [], 'pos': [],
+#    'id_out': [], 'Si_in': []}
         self.data = {'T': [], 'Frame': [],
-   'N': [], 'Si_out': [], 'pos': [],
-   'id_out': [], 'Si_in': []}
+   'N': [], 'pos': [], 'food_target': []}
 
         # Rates
         self.update_rates()
@@ -182,24 +185,27 @@ class Model(Model):
     def collect_data(self):
 
         pos = ''
-        Si_out = ''
-        Si_in = ''
-        id_out = ''
+        target = 0
+        # Si_out = ''
+        # Si_in = ''
+        # id_out = ''
         for i in self.states['beta']:
             pos += str(i.pos) + ';'
-            Si_out += str(i.Si) + ','
-            id_out += str(i.unique_id) +','
+            target += int(hasattr(i, 'target') and i.target in self.food_coords)
+            # Si_out += str(i.Si) + ','
+            # id_out += str(i.unique_id) +','
    
-        for i in self.states['alpha']:
-            Si_in += str(i.Si) +','
+        # for i in self.states['alpha']:
+        #     Si_in += str(i.Si) +','
    
         self.data['T'].append(self.time)
         self.data['Frame'].append(round(self.time * 2))
         self.data['N'].append(len(self.states['beta']))
-        self.data['Si_out'].append(Si_out[:-1])
+        # self.data['Si_out'].append(Si_out[:-1])
         self.data['pos'].append(pos[:-1])
-        self.data['id_out'].append(id_out[:-1])
-        self.data['Si_in'].append(Si_in[:-1])
+        # self.data['id_out'].append(id_out[:-1])
+        # self.data['Si_in'].append(Si_in[:-1])
+        self.data['food_target'].append(target)
    
     def init_agents(self, **kwargs):
      
