@@ -426,6 +426,26 @@ class Model(Model):
         except:
             Exception('Could not collect results')
             print('Could not collect results', flush = True)
+            
+    def run_exploration(self, plots = False):
+        while sum([self.food[i][-1].is_detected for i in self.food]) == 0:
+            self.step(tmax = self.time + 1)
+  
+        print('+++ Model successfully run... Collecting results... +++', flush = True)
+        if plots:
+            self.plot_N()
+   
+        self.z = self.nodes['N']
+        self.zq = np.unique(self.z, return_inverse = True)[1]
+        self.pos = {'node': self.nodes['Node'], 'x': [x[0] for x in self.nodes['Coords']],
+                          'y': [x[1] for x in self.nodes['Coords']], 'z': self.zq}
+
+        try:
+            self.collect_results()
+            print('+++ Results collected successfully! +++', flush = True)
+        except:
+            Exception('Could not collect results')
+            print('Could not collect results', flush = True)
 
   
     def collect_results(self, fps = 2):
@@ -442,16 +462,16 @@ class Model(Model):
         self.df = df
         self.food_df = food
   
-    def run_food(self, tmax, plots = False):
-        n = sum(self.model.food_dict.values())
-        t = 1
-        while sum(self.model.food_dict.values()) == n:
-            self.step(t)
-            t += 1
-        self.step(tmax + t)
-        if plots:
-            self.plot_N()
-            # self.plot_I()
+    # def run_food(self, tmax, plots = False):
+    #     n = sum(self.model.food_dict.values())
+    #     t = 1
+    #     while sum(self.model.food_dict.values()) == n:
+    #         self.step(t)
+    #         t += 1
+    #     self.step(tmax + t)
+    #     if plots:
+    #         self.plot_N()
+    #         self.plot_I()
 
     def save_results(self, path, filename):
      
