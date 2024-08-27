@@ -104,7 +104,7 @@ class Model(Model):
 #    'N': [], 'Si_out': [], 'pos': [],
 #    'id_out': [], 'Si_in': []}
         self.data = {'T': [], 'Frame': [],
-   'N': [], 'pos': [], 'food_target': []}
+   'N': [], 'pos': [], 'food_target': [], 'id_out': []}
 
         # Rates
         self.update_rates()
@@ -188,12 +188,12 @@ class Model(Model):
         target = 0
         # Si_out = ''
         # Si_in = ''
-        # id_out = ''
+        id_out = ''
         for i in self.states['beta']:
             pos += str(i.pos) + ';'
             target += int(hasattr(i, 'target') and i.target in self.food_coords)
             # Si_out += str(i.Si) + ','
-            # id_out += str(i.unique_id) +','
+            id_out += str(i.unique_id) +','
    
         # for i in self.states['alpha']:
         #     Si_in += str(i.Si) +','
@@ -203,7 +203,7 @@ class Model(Model):
         self.data['N'].append(len(self.states['beta']))
         # self.data['Si_out'].append(Si_out[:-1])
         self.data['pos'].append(pos[:-1])
-        # self.data['id_out'].append(id_out[:-1])
+        self.data['id_out'].append(id_out[:-1])
         # self.data['Si_in'].append(Si_in[:-1])
         self.data['food_target'].append(target)
    
@@ -285,9 +285,9 @@ class Model(Model):
                 # rec[idx_listen] = True
                 
             rec[idx_listen] = True
-            print('Number of LR: ', round(nLR * (self.epsilon)), '\n',
-                  'Number of SR: ', round(nSR * (self.epsilon)), '\n',
-                  'Total number of recruits: ', len(set(idx_listen)), flush = True)
+            # print('Number of LR: ', round(nLR * (self.epsilon)), '\n',
+            #       'Number of SR: ', round(nSR * (self.epsilon)), '\n',
+            #       'Total number of recruits: ', len(set(idx_listen)), flush = True)
         else:
             if self.rho < 0:
                 print('rho must be a parameter with value [0, 1]; setting default mot matrix for all individuals...', flush = True)
