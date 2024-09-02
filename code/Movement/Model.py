@@ -4,8 +4,8 @@ from Ant import np, Ant
 import math
 from functions import rotate, dist
 from parameters import N, width, height, mot_matrix_LR, mot_matrix_SR, nest
-import pyarrow as pa
-import pyarrow.parquet as pq
+# import pyarrow as pa
+# import pyarrow.parquet as pq
 import matplotlib.pyplot as plt
 
 
@@ -47,14 +47,23 @@ class Model(Model):
 		self.iters = 0
 		self.init_nodes() ## initializes some metrics by node
 
-	def init_targets(self):
-		tolerance = 1
-		darray = np.array([dist(self.xy[i], self.xy[nest]) for i in self.xy])
-		idx = np.where((darray > (self.distance - tolerance)) & (darray < (self.distance + tolerance)))[0]
+		
 
-		nodes = np.array(list(self.xy.keys()))
-		self.targets = [tuple(x) for x in nodes[idx]]
-		self.targets = [tuple(x) for x in nodes[idx]]
+
+	def init_targets(self):
+		self.targets = [(6, 33), (6, 34), (7, 34), # patch 1
+    (7, 33), (7, 32), (6, 32),
+    (6, 11), (6, 12), (7, 12), # patch 2
+    (7, 11), (7, 10), (6, 10)]
+		
+	# def init_targets(self):
+	# 	tolerance = 1
+	# 	darray = np.array([dist(self.xy[i], self.xy[nest]) for i in self.xy])
+	# 	idx = np.where((darray > (self.distance - tolerance)) & (darray < (self.distance + tolerance)))[0]
+
+	# 	nodes = np.array(list(self.xy.keys()))
+	# 	self.targets = [tuple(x) for x in nodes[idx]]
+	# 	self.targets = [tuple(x) for x in nodes[idx]]
 
 
 	def step(self):
