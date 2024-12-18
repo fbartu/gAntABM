@@ -64,7 +64,7 @@ class Model(Model):
         y = [xy[1] for xy in self.coords.values()]
         xy = [rotate(x[i], y[i], theta = math.pi / 2) for i in range(len(x))]
         self.xy = dict(zip(self.coords.keys(), xy))
-        self.network = dict(zip(self.coords.keys(), 0))
+        self.network = dict(zip(self.coords.keys(), [0]))
         self.network[nest] = N
         # if 'd' in kwargs:
         #     d = float(kwargs["d"])
@@ -151,7 +151,7 @@ class Model(Model):
         pos = ''
         target = 0
         id_out = ''
-        for i in self.agents:
+        for i in self.agents.values():
             pos += str(i.pos) + ';'
             target += int(hasattr(i, 'target') and i.target in self.food_coords)
             # Si_out += str(i.Si) + ','
@@ -389,15 +389,15 @@ class Model(Model):
     def collect_results(self, fps = 2):
      
  
-        result = pd.DataFrame({'T': self.data['T'], 'N': self.data['N']})
-        result['Frame'] = result['T'] // (1 / fps)
-        df = result.groupby('Frame').agg({'N': 'mean'}).reset_index()
+        # result = pd.DataFrame({'T': self.data['T'], 'N': self.data['N']})
+        # result['Frame'] = result['T'] // (1 / fps)
+        # df = result.groupby('Frame').agg({'N': 'mean'}).reset_index()
 
         food = {'node': list(self.food.keys()),
                 't': [round(food.detection_time,3) if food.is_detected else np.nan for foodlist in self.food.values() for food in foodlist ],
                 'origin': [food.detection_origin if food.is_detected else None for foodlist in self.food.values() for food in foodlist ]}
   
-        self.df = df
+        # self.df = df
         self.food_df = food
   
     # def run_food(self, tmax, plots = False):
