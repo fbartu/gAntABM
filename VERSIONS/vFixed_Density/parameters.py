@@ -3,8 +3,8 @@
 """"""""""""""""""""""""""
 
 ''' MODEL '''
-N = 10 # number of automata
-beta = 0.6 # 1.5 # rate of action in arena
+N = 25 # number of automata
+beta = 0.25 # 1.5 # rate of action in arena
 foodXvertex = 1
 
 # sto_1: randomly distributed food (stochastic)

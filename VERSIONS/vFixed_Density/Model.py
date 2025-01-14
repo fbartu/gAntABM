@@ -82,7 +82,8 @@ class Model(Model):
             # self.agents[i] = Ant(i, self)
    
         # Init first active agent
-        self.agents[0].Si = np.random.uniform(0.0, 1.0)
+        # self.agents[0].Si = np.random.uniform(0.0, 1.0)
+        self.agents[0].Si = 1
   
         # Food
         self.food_condition = food_condition
@@ -95,8 +96,10 @@ class Model(Model):
 #         self.data = {'T': [], 'Frame': [],
 #    'N': [], 'Si_out': [], 'pos': [],
 #    'id_out': [], 'Si_in': []}
-        self.data = {'T': [], 'Frame': [],
-   'N': [], 'pos': [], 'food_target': [], 'id_out': []}
+#         self.data = {'T': [], 'Frame': [],
+#    'N': [], 'pos': [], 'food_target': [], 'id_out': []}
+        self.data = {'T': [], 'Frame': [], 'pos': []}
+
 
         # Rates
         self.R_t = beta * N
@@ -149,13 +152,13 @@ class Model(Model):
     def collect_data(self):
 
         pos = ''
-        target = 0
-        id_out = ''
+        # target = 0
+        # id_out = ''
         for i in self.agents.values():
             pos += str(i.pos) + ';'
-            target += int(hasattr(i, 'target') and i.target in self.food_coords)
+            # target += int(hasattr(i, 'target') and i.target in self.food_coords)
             # Si_out += str(i.Si) + ','
-            id_out += str(i.unique_id) +','
+            # id_out += str(i.unique_id) +','
    
         # for i in self.states['alpha']:
         #     Si_in += str(i.Si) +','
@@ -164,9 +167,9 @@ class Model(Model):
         self.data['Frame'].append(round(self.time * 2))
         # self.data['Si_out'].append(Si_out[:-1])
         self.data['pos'].append(pos[:-1])
-        self.data['id_out'].append(id_out[:-1])
+        # self.data['id_out'].append(id_out[:-1])
         # self.data['Si_in'].append(Si_in[:-1])
-        self.data['food_target'].append(target)
+        # self.data['food_target'].append(target)
    
     def init_agents(self, **kwargs):
      
@@ -354,8 +357,10 @@ class Model(Model):
         # self.z = [self.nodes.loc[self.nodes['Node'] == i, 'N'] for i in self.xy]
         self.z = self.nodes['N']
         self.zq = np.unique(self.z, return_inverse = True)[1]
-        self.pos = {'node': self.nodes['Node'], 'x': [x[0] for x in self.nodes['Coords']],
-                          'y': [x[1] for x in self.nodes['Coords']], 'z': self.zq}
+        # self.pos = {'node': self.nodes['Node'], 'x': [x[0] for x in self.nodes['Coords']],
+        #                   'y': [x[1] for x in self.nodes['Coords']], 'z': self.zq}
+        self.pos = {'node': [str(i) for i in self.nodes['Node']], 'x': [x[0] for x in self.nodes['Coords']],
+                    'y': [x[1] for x in self.nodes['Coords']], 'z': self.zq}
         # self.pos = pd.DataFrame({'node': list(self.xy.keys()), 'x': [x[0] for x in self.xy.values()],
         #                   'y': [x[1] for x in self.xy.values()], 'z': self.zq})
         try:
@@ -413,12 +418,12 @@ class Model(Model):
 
     def save_results(self, path, filename):
      
-        try:
-            self.df.to_parquet(path + filename + '.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
-            print('Saved N', flush = True)
-        except:
-            Exception('Not saved!')
-            print('N not saved!', flush = True)
+        # try:
+        #     self.df.to_parquet(path + filename + '.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
+        #     print('Saved N', flush = True)
+        # except:
+        #     Exception('Not saved!')
+        #     print('N not saved!', flush = True)
    
         try:
             data = pa.Table.from_pydict(self.data)
@@ -428,13 +433,13 @@ class Model(Model):
             Exception('Not saved!')
             print('Data not saved!', flush = True)
    
-        try:
-            food = pa.Table.from_pydict(self.food_df)
-            pq.write_table(food, path + filename + '_food.parquet', compression = 'gzip')
-            print('Saved food', flush = True)
-        except:
-            Exception('Not saved!')
-            print('Food not saved!', flush = True)
+        # try:
+        #     food = pa.Table.from_pydict(self.food_df)
+        #     pq.write_table(food, path + filename + '_food.parquet', compression = 'gzip')
+        #     print('Saved food', flush = True)
+        # except:
+        #     Exception('Not saved!')
+        #     print('Food not saved!', flush = True)
 
         try:
             pos = pa.Table.from_pydict(self.pos)

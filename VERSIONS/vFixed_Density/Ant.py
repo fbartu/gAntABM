@@ -12,7 +12,8 @@ class Ant(Agent):
 		super().__init__(unique_id, model)
 
 		self.Si = 0
-		self.g = g
+		# self.g = g
+		self.g = 1
 
 		self.is_active = False
 		self.state = '0'
@@ -36,7 +37,8 @@ class Ant(Agent):
 
 	def reset_movement(self):
 		self.movement = 'default'
-		self.move_history = (None, None, None)
+		# self.move_history = (None, None, None)
+		self.move_history = (nest, (1, 22), nest)
  
 	def update_movement(self):
 		self.move_history = (self.move_history[1], self.move_history[2], self.pos)
@@ -167,10 +169,15 @@ class Ant(Agent):
 		else:
 			z = 0
 		self.Si = math.tanh(self.g * (z + self.Si -self.model.Theta) ) # update activity
+  
+	def activate(self):
+		self.Si = np.random.random()
+		self.is_active = True
  
 	def leave_nest(self):
 		self.model.grid.place_agent(self, nest)
 		self.is_active = True
+		# self.activate()
 
 	def enter_nest(self):
 		self.is_active = False
@@ -214,6 +221,10 @@ class Ant(Agent):
    
 			if self.pos == nest:
 				self.enter_nest()
+
+				## SPONTANEOUS ACTIVATION
+				if np.random.random() < 0.01:
+					self.activate()
     
 			else:
 				self.move()
