@@ -6,6 +6,8 @@ class Food:
 		self.initial_pos = pos
 		self.is_collected = False
 		self.is_detected = False
+		self.behavior_tag = 'food'
+		self.movement = 'none'
 
 	# def __repr__(self):
 	# 	if self.is_collected:

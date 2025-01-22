@@ -7,7 +7,7 @@ from parameters import nest, theta # , nest_influence, direction_bias
 ''' ANT AGENT '''
 class Ant(Agent):
 
-	def __init__(self, unique_id, model, mot_matrix, default_movement = 'exp', g = np.random.uniform(0.0, 1.0), recruitment = True):
+	def __init__(self, unique_id, model, mot_matrix, behavior, default_movement = 'exp', g = np.random.uniform(0.0, 1.0), social = True):
 
 		super().__init__(unique_id, model)
 
@@ -17,6 +17,7 @@ class Ant(Agent):
 		self.is_active = False
 		self.state = '0'
 		self.status = 'gamma'
+		self.behavior_tag = behavior
 
 		self.origin = nest
 
@@ -29,7 +30,7 @@ class Ant(Agent):
   
 		self.mot_matrix = mot_matrix
   
-		if recruitment:
+		if social:
 			self.interaction = self.interaction_with_recruitment
 		else:
 			self.interaction = self.interaction_without_recruitment
@@ -148,7 +149,7 @@ class Ant(Agent):
 	# Move method
 	def move(self):
      
-		possible_steps = self.model.grid.get_neighbors(
+		possible_steps = self.model.grid.get_neighborhood(
 		self.pos,
 		include_center = False)
 
@@ -183,8 +184,10 @@ class Ant(Agent):
  
 
 	def find_neighbors(self):
+     
+		boolean = self.pos == 'nest'
     
-		if self.pos == 'nest':
+		if boolean:
    
 			alist = self.model.states['alpha']
 
@@ -200,15 +203,16 @@ class Ant(Agent):
 		else:
 			neighbors = []
 
-		return neighbors
+		return neighbors, boolean
 
 
 	def interaction_with_recruitment(self):
-		neighbors = self.find_neighbors()
+		neighbors, in_nest = self.find_neighbors()
 
 		s = [] # state
 		z = [] # activity
 		t = [] # target
+		int_type = self.behavior_tag + '_' + self.movement + '+'
   
 		l = len(neighbors)
 		if l:
@@ -217,6 +221,7 @@ class Ant(Agent):
 				s.append(i.state)
 				z.append(self.model.Jij[self.state + "-" + i.state]* i.Si - self.model.Theta)
 				if hasattr(i, 'food_location'): t.append(self.model.coords[i.food_location])
+				int_type += i.behavior_tag + '_' + i.movement + '+'
 
 			z = sum(z)
 
@@ -228,6 +233,11 @@ class Ant(Agent):
 		# if len(t) and not hasattr(self, 'target'):
 			self.target = t[-1]
 			self.movement = 'target'
+   
+		if in_nest:
+			return 'none_none'
+		else:
+			return int_type[:-1]
 
 
 	# def interaction_with_recruitment(self):
@@ -258,10 +268,11 @@ class Ant(Agent):
 	# 	self.Si = math.tanh(self.g * (z + self.Si) ) # update activity
  
 	def interaction_without_recruitment(self):
-		neighbors = self.find_neighbors()
+		neighbors, in_nest = self.find_neighbors()
 
 		s = [] # state
 		z = [] # activity
+		int_type = self.behavior_tag + '_' + self.movement + '+'
   
 		l = len(neighbors)
 		if l:
@@ -269,12 +280,18 @@ class Ant(Agent):
 			for i in neighbors:
 				s.append(i.state)
 				z.append(self.model.Jij[self.state + "-" + i.state]* i.Si - self.model.Theta)
+				int_type += i.behavior_tag + '_' + i.movement + '+'
 
 			z = sum(z)
    
 		else:
 			z = 0
 		self.Si = math.tanh(self.g * (z + self.Si -self.model.Theta) ) # update activity
+		
+		if in_nest:
+			return 'none_none'
+		else:
+			return int_type[:-1]
 	
 	def update_status(self):
 		self.check_status()
@@ -387,5 +404,7 @@ class Ant(Agent):
 			self.Si = np.random.uniform(0.0, 1.0) ## spontaneous activation
 
 
-		self.interaction()
+		int_type = self.interaction()
 		self.update_status()
+
+		return int_type

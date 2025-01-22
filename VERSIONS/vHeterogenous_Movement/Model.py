@@ -48,8 +48,9 @@ class Model(Model):
             self.epsilon = 1
         else:
             self.epsilon = round(kwargs['epsilon'], 2)
-   
-        self.matrices = {'global': mot_matrix, 'LR': mot_matrix_LR, 'SR': mot_matrix_SR}
+
+        self.matrices = {'global': mot_matrix, 'scout': mot_matrix_LR, 'recruit': mot_matrix_SR}   
+        # self.matrices = {'global': mot_matrix, 'LR': mot_matrix_LR, 'SR': mot_matrix_SR}
 
   
         nds = [(0, i) for i in range(1, 44, 2)]
@@ -95,7 +96,7 @@ class Model(Model):
         self.food_coords = [self.coords[i] for i in self.food_positions]
 
         self.keys = {'id': [self.agents[i].unique_id for i in self.agents],
-               'g': [self.agents[i].g for i in self.agents]}
+               'g': [self.agents[i].g for i in self.agents], 'behavior': [self.agents[i].behavior_tag for i in self.agents]}
 
 # 		self.data = pd.DataFrame({'T': [], 'Frame': [],
 #    'N': [], 'Si_out': [], 'pos': [],
@@ -103,8 +104,10 @@ class Model(Model):
 #         self.data = {'T': [], 'Frame': [],
 #    'N': [], 'Si_out': [], 'pos': [],
 #    'id_out': [], 'Si_in': []}
-        self.data = {'T': [], 'Frame': [],
-   'N': [], 'pos': [], 'food_target': [], 'id_out': []}
+#         self.data = {'T': [], 'Frame': [],
+#    'N': [], 'pos': [], 'food_target': [], 'id_out': []}
+        self.data = {'T': [], 'id': [], 'int_type': [], 
+                     'node': [], 'x': [], 'y': [], 'movement': []}
 
         # Rates
         self.update_rates()
@@ -166,10 +169,10 @@ class Model(Model):
             self.sampled_agent.append(agent.unique_id)
    
             # do action
-            agent.action(process)
+            int_type = agent.action(process)
    
 
-            self.collect_data()
+            self.collect_data(int_type=int_type)
             # self.collect_data(agent = agent, prev_state = prev_state)
    
             self.update_rates()
@@ -182,38 +185,68 @@ class Model(Model):
             self.sample_time()
             self.iters += 1
 
-    def collect_data(self):
-
-        pos = ''
-        target = 0
+    def collect_data(self, int_type):
+        node = []
+        x = []
+        y = []
+        id = []
+        target = []
+        interaction = []
+        # pos = ''
+        # target = 0
         # Si_out = ''
         # Si_in = ''
-        id_out = ''
-        for i in self.states['beta']:
-            pos += str(i.pos) + ';'
-            target += int(hasattr(i, 'target') and i.target in self.food_coords)
-            # Si_out += str(i.Si) + ','
-            id_out += str(i.unique_id) +','
-   
-        # for i in self.states['alpha']:
-        #     Si_in += str(i.Si) +','
-   
-        self.data['T'].append(self.time)
-        self.data['Frame'].append(round(self.time * 2))
-        self.data['N'].append(len(self.states['beta']))
-        # self.data['Si_out'].append(Si_out[:-1])
-        self.data['pos'].append(pos[:-1])
-        self.data['id_out'].append(id_out[:-1])
-        # self.data['Si_in'].append(Si_in[:-1])
-        self.data['food_target'].append(target)
-   
-    def init_agents(self, **kwargs):
-     
-        if 'default_movement' in kwargs:
-            dmove = kwargs['default_movement']
+        # id_out = ''
+        l = len(self.states['beta'])
+        if l:
+            for i in self.states['beta']:
+                node.append(str(i.pos))
+                xy = self.xy[i.pos]
+                x.append(xy[0])
+                y.append(xy[1])
+                target.append(i.movement)
+                # target += int(hasattr(i, 'target') and i.target in self.food_coords)
+                # Si_out += str(i.Si) + ','
+                id.append(i.unique_id)
+                if id[-1] == self.sampled_agent[-1]:
+                    interaction.append(int_type)
+                else:
+                    interaction.append('none_none')
+                # id_out += str(i.unique_id) +','
+    
+            # for i in self.states['alpha']:
+            #     Si_in += str(i.Si) +','
+    
+            self.data['T'].extend([self.time] * l)
+            self.data['id'].extend(id)
+            self.data['int_type'].extend(interaction)
+            self.data['node'].extend(node)
+            self.data['x'].extend(x)
+            self.data['y'].extend(y)
+            self.data['movement'].extend(target)
+        
         else:
-            dmove = 'exp'
-   
+            self.data['T'].extend([self.time])
+            self.data['id'].append(-1)
+            self.data['int_type'].append('none_none')
+            self.data['node'].append('none')
+            self.data['x'].append(99)
+            self.data['y'].append(99)
+            self.data['movement'].append('none')
+            
+            
+            
+            
+            # self.data['Frame'].extend([round(self.time * 2)] * l)
+            # self.data['N'].extend([l] * l) # can be computed afterwards
+            # self.data['I'].append([len(int_type.split('+')) - 1] * l)
+            # self.data['Si_out'].append(Si_out[:-1])
+            # self.data['id_out'].append(id_out[:-1])
+            # self.data['Si_in'].append(Si_in[:-1])
+            # self.data['food_target'].append(target)
+        
+    def init_agents(self, **kwargs):
+         
         if 'g' in kwargs:
             
             # must be passed as: size, type, value 1, value 2
@@ -243,64 +276,145 @@ class Model(Model):
                 g = np.random.uniform(low = 0.0, high = 1.0, size = N)
      
         else:
-            g = np.random.uniform(low = 0.0, high = 1.0, size = N)   
+            g = np.random.uniform(low = 0.0, high = 1.0, size = N)  
+            
+        if self.rho < 0:
+            self.rho = 0
 
-        if self.rho >= 0:
+        nLR = round(N * self.rho)
+        nSR = N - nLR
+        indices = np.random.choice(N, size = nSR,replace=False)
+        
+        behav = np.array(['scout'] * N, dtype = '<U7')
+        behav[indices] = 'recruit'
+        mask = np.ones(N, dtype = bool)
+        mask[indices] = False
+        rec = np.array([False] * N)
+        
+        
+        # social feedbacks [LR]
+        if self.feedback == 'scout':
+            nlisten = round(nLR * self.epsilon) 
+            idx_listen = np.random.choice(np.array(list(range(N)))[mask], size = nlisten, replace = False)
             
-            nLR = round(N * self.rho)
-            nSR = N - nLR
-            indices = np.random.choice(N, size = nSR,replace=False)
             
-            behav = np.array(['LR'] * N)
-            behav[indices] = 'SR'
-            
-            mask = np.ones(N, dtype = bool)
-            mask[indices] = False
-            # indices = ['LR'] * round(N * self.rho) + ['SR'] * round((N * (1 - self.rho)))
-            rec = np.array([False] * N)
-            
-            
-            # social feedbacks [LR]
-            if self.feedback == 'LR':
-                nlisten = round(nLR * self.epsilon) 
-                idx_listen = np.random.choice(np.array(list(range(N)))[mask], size = nlisten, replace = False)
-                # rec[np.concatenate([indices, idx_listen])] = True
-                
-                
-            # social feedbacks [LR]    
-            elif self.feedback == 'SR':
-                nlisten = round(nSR * self.epsilon) 
-                idx_listen = np.random.choice(indices, size = nlisten, replace = False)
-                # rec[np.concatenate([np.where(mask)[0], idx_listen])] = True
-     
-            # social feedbacks [Both]
-            else:
-                # nlisten = round(nLR * (self.epsilon / 2))
-                nlisten = round(nLR * (self.epsilon))
-                idx_listen = np.random.choice(np.array(list(range(N)))[mask], size = nlisten, replace = False)
-                # nlisten = round(nSR * (self.epsilon / 2))
-                nlisten = round(nSR * (self.epsilon))
-                idx_listen = np.append(idx_listen, np.random.choice(indices, size = nlisten, replace = False))
-                # idx_listen = np.random.choice(N, size = nlisten, replace = False)
-                # rec[idx_listen] = True
-                
-            rec[idx_listen] = True
-            # print('Number of LR: ', round(nLR * (self.epsilon)), '\n',
-            #       'Number of SR: ', round(nSR * (self.epsilon)), '\n',
-            #       'Total number of recruits: ', len(set(idx_listen)), flush = True)
+        # social feedbacks [LR]    
+        elif self.feedback == 'recruit':
+            nlisten = round(nSR * self.epsilon) 
+            idx_listen = np.random.choice(indices, size = nlisten, replace = False)
+    
+        # social feedbacks [Both]
         else:
-            if self.rho < 0:
-                print('rho must be a parameter with value [0, 1]; setting default mot matrix for all individuals...', flush = True)
-            behav = ['global'] * N
+            nlisten = round(nLR * (self.epsilon))
+            idx_listen = np.random.choice(np.array(list(range(N)))[mask], size = nlisten, replace = False)
+            nlisten = round(nSR * (self.epsilon))
+            idx_listen = np.append(idx_listen, np.random.choice(indices, size = nlisten, replace = False))
             
-        # print(pd.DataFrame({'behav': behav, 'rec': rec}).value_counts()) # check that everything works
-        # print(sum(rec), nSR, nLR)
-
+        rec[idx_listen] = True
+        # print('Number of LR: ', round(nLR * (self.epsilon)), '\n',
+        #       'Number of SR: ', round(nSR * (self.epsilon)), '\n',
+        #       'Total number of recruits: ', len(set(idx_listen)), flush = True)
+            
         self.agents = {}
         for i in range((N-1), -1, -1):
-            self.agents[i] = Ant(i, self, default_movement=dmove, g=g[i], recruitment=rec[i], mot_matrix=self.matrices[behav[i]])
-        # for i in range((N-1), -1, -1):
-        #     self.agents[i] = Ant(i, self, default_movement=dmove, g=g[i], recruitment=rec[i], mot_matrix=self.matrices[indices[i]])
+            self.agents[i] = Ant(i, self, g=g[i], social=rec[i], mot_matrix=self.matrices[behav[i]], behavior=behav[i])
+            
+    ''' OLD VERSION OF init_agents'''
+   
+    # def init_agents(self, **kwargs):
+     
+    #     if 'default_movement' in kwargs:
+    #         dmove = kwargs['default_movement']
+    #     else:
+    #         dmove = 'exp'
+   
+    #     if 'g' in kwargs:
+            
+    #         # must be passed as: size, type, value 1, value 2
+    #         # e.g. '75,N,0.5,0.2' -> 75 % of gaussian with mu = 0.5 and sigma = 0.2
+    #         # e.g. '25,B,0.5,0.5' -> 25 % of beta with shapes a = b = 0.5
+    #         code = kwargs['g'].split(':')
+    #         g = []
+    #         try:
+    #             for i in range(len(code)):
+    #                     s, t, v1, v2 = code[i].split(',')
+    #                     if t == 'N':
+    #                         g += list(np.random.normal(loc = float(v1), scale = float(v2), size = int(s)))
+    #                     elif t == 'B':
+    #                         g += list(np.random.beta(a = float(v1), b = float(v2), size = int(s)))
+    #                     else:
+    #                         g += list(np.random.uniform(low = float(v1), high = float(v2), size = int(s)))
+    #             if len(g) < N:
+    #                 print('Warning: Less gains than population size passed to parametrization')
+    #                 g += np.random.uniform(low = 0.0, high = 1.0, size = N - len(g))
+    #             elif len(g) > N:
+    #                 print('Warning: More gains than population size passed to parametrization')
+    #                 g = g[:N]
+
+    #         except:
+    #             print('Warning: Values must be passed in a 4 sized list separated by commas.',
+    #        '\n Switching to default behaviour in gain initialization')
+    #             g = np.random.uniform(low = 0.0, high = 1.0, size = N)
+     
+    #     else:
+    #         g = np.random.uniform(low = 0.0, high = 1.0, size = N)   
+
+    #     if self.rho >= 0:
+            
+    #         nLR = round(N * self.rho)
+    #         nSR = N - nLR
+    #         indices = np.random.choice(N, size = nSR,replace=False)
+            
+    #         behav = np.array(['LR'] * N)
+    #         behav[indices] = 'SR'
+            
+    #         mask = np.ones(N, dtype = bool)
+    #         mask[indices] = False
+    #         # indices = ['LR'] * round(N * self.rho) + ['SR'] * round((N * (1 - self.rho)))
+    #         rec = np.array([False] * N)
+            
+            
+    #         # social feedbacks [LR]
+    #         if self.feedback == 'LR':
+    #             nlisten = round(nLR * self.epsilon) 
+    #             idx_listen = np.random.choice(np.array(list(range(N)))[mask], size = nlisten, replace = False)
+    #             # rec[np.concatenate([indices, idx_listen])] = True
+                
+                
+    #         # social feedbacks [LR]    
+    #         elif self.feedback == 'SR':
+    #             nlisten = round(nSR * self.epsilon) 
+    #             idx_listen = np.random.choice(indices, size = nlisten, replace = False)
+    #             # rec[np.concatenate([np.where(mask)[0], idx_listen])] = True
+     
+    #         # social feedbacks [Both]
+    #         else:
+    #             # nlisten = round(nLR * (self.epsilon / 2))
+    #             nlisten = round(nLR * (self.epsilon))
+    #             idx_listen = np.random.choice(np.array(list(range(N)))[mask], size = nlisten, replace = False)
+    #             # nlisten = round(nSR * (self.epsilon / 2))
+    #             nlisten = round(nSR * (self.epsilon))
+    #             idx_listen = np.append(idx_listen, np.random.choice(indices, size = nlisten, replace = False))
+    #             # idx_listen = np.random.choice(N, size = nlisten, replace = False)
+    #             # rec[idx_listen] = True
+                
+    #         rec[idx_listen] = True
+    #         # print('Number of LR: ', round(nLR * (self.epsilon)), '\n',
+    #         #       'Number of SR: ', round(nSR * (self.epsilon)), '\n',
+    #         #       'Total number of recruits: ', len(set(idx_listen)), flush = True)
+    #     else:
+    #         if self.rho < 0:
+    #             print('rho must be a parameter with value [0, 1]; setting default mot matrix for all individuals...', flush = True)
+    #         behav = ['global'] * N
+            
+    #     # print(pd.DataFrame({'behav': behav, 'rec': rec}).value_counts()) # check that everything works
+    #     # print(sum(rec), nSR, nLR)
+
+    #     self.agents = {}
+    #     for i in range((N-1), -1, -1):
+    #         self.agents[i] = Ant(i, self, default_movement=dmove, g=g[i], recruitment=rec[i], mot_matrix=self.matrices[behav[i]])
+    #     # for i in range((N-1), -1, -1):
+    #     #     self.agents[i] = Ant(i, self, default_movement=dmove, g=g[i], recruitment=rec[i], mot_matrix=self.matrices[indices[i]])
 
     def set_default_movement(self, type = 'exp', matrix = None):
         if matrix is None: matrix = self.matrices['SR']
@@ -451,15 +565,15 @@ class Model(Model):
     def collect_results(self, fps = 2):
      
  
-        result = pd.DataFrame({'T': self.data['T'], 'N': self.data['N']})
-        result['Frame'] = result['T'] // (1 / fps)
-        df = result.groupby('Frame').agg({'N': 'mean'}).reset_index()
+        # result = pd.DataFrame({'T': self.data['T'], 'N': self.data['N']})
+        # result['Frame'] = result['T'] // (1 / fps)
+        # df = result.groupby('Frame').agg({'N': 'mean'}).reset_index()
 
         food = {'node': list(self.food.keys()),
                 't': [round(food.detection_time,3) if food.is_detected else np.nan for foodlist in self.food.values() for food in foodlist ],
                 'origin': [food.detection_origin if food.is_detected else None for foodlist in self.food.values() for food in foodlist ]}
   
-        self.df = df
+        # self.df = df
         self.food_df = food
   
     # def run_food(self, tmax, plots = False):
@@ -475,12 +589,12 @@ class Model(Model):
 
     def save_results(self, path, filename):
      
-        try:
-            self.df.to_parquet(path + filename + '.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
-            print('Saved N', flush = True)
-        except:
-            Exception('Not saved!')
-            print('N not saved!', flush = True)
+        # try:
+        #     self.df.to_parquet(path + filename + '.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
+        #     print('Saved N', flush = True)
+        # except:
+        #     Exception('Not saved!')
+        #     print('N not saved!', flush = True)
    
         try:
             data = pa.Table.from_pydict(self.data)
