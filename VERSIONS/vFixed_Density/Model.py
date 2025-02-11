@@ -9,13 +9,15 @@ from functions import rotate, moving_average, discretize_time, fill_hexagon, dis
 from parameters import N, beta,foodXvertex, food_condition, width, height, Jij, Theta, scout_mov, recruit_mov
 import pyarrow as pa
 import pyarrow.parquet as pq
+import random
 
 
 ''' MODEL '''
 class Model(Model):
 
     def __init__(self, beta = beta, Theta = Theta, Jij = Jij, N = N, 
-              width = width, height = height, food_condition = food_condition, **kwargs):
+              width = width, height = height, food_condition = food_condition, 
+              init_position = 'nest', **kwargs):
 
         super().__init__()
         
@@ -78,7 +80,8 @@ class Model(Model):
         #     self.distance = 13
   
         # Agents
-        self.init_agents(**kwargs)
+        self.N = N
+        self.init_agents(init_position, **kwargs)
             # self.agents[i] = Ant(i, self)
    
         # Init first active agent
@@ -98,7 +101,8 @@ class Model(Model):
 #    'id_out': [], 'Si_in': []}
 #         self.data = {'T': [], 'Frame': [],
 #    'N': [], 'pos': [], 'food_target': [], 'id_out': []}
-        self.data = {'T': [], 'Frame': [], 'pos': []}
+        self.data = {'T': [], 'id': [], 'int_type': [], 
+                     'node': [], 'x': [], 'y': [], 'movement': []}
 
 
         # Rates
@@ -137,9 +141,9 @@ class Model(Model):
             self.sampled_agent.append(agent.unique_id)
    
             # do action
-            agent.action()
+            int_type = agent.action()
 
-            self.collect_data()
+            self.collect_data(int_type=int_type)
             # self.collect_data(agent = agent, prev_state = prev_state)
             
             # get time for next iteration
@@ -148,30 +152,60 @@ class Model(Model):
             # get rng for next iteration
             self.sample_time()
             self.iters += 1
+            
+            
+    def collect_data(self, int_type):
+        node = []
+        x = []
+        y = []
+        id = []
+        target = []
+        interaction = []
 
-    def collect_data(self):
-
-        pos = ''
-        # target = 0
-        # id_out = ''
         for i in self.agents.values():
-            pos += str(i.pos) + ';'
-            # target += int(hasattr(i, 'target') and i.target in self.food_coords)
-            # Si_out += str(i.Si) + ','
-            # id_out += str(i.unique_id) +','
+            node.append(str(i.pos))
+            xy = self.xy[i.pos]
+            x.append(xy[0])
+            y.append(xy[1])
+            target.append(i.movement)
+            id.append(i.unique_id)
+            if id[-1] == self.sampled_agent[-1]:
+                interaction.append(int_type)
+            else:
+                interaction.append('none_none')
+
+
+        self.data['T'].extend([self.time] * self.N)
+        self.data['id'].extend(id)
+        self.data['int_type'].extend(interaction)
+        self.data['node'].extend(node)
+        self.data['x'].extend(x)
+        self.data['y'].extend(y)
+        self.data['movement'].extend(target)
+
+    # def collect_data(self):
+
+    #     pos = ''
+    #     # target = 0
+    #     # id_out = ''
+    #     for i in self.agents.values():
+    #         pos += str(i.pos) + ';'
+    #         # target += int(hasattr(i, 'target') and i.target in self.food_coords)
+    #         # Si_out += str(i.Si) + ','
+    #         # id_out += str(i.unique_id) +','
    
-        # for i in self.states['alpha']:
-        #     Si_in += str(i.Si) +','
+    #     # for i in self.states['alpha']:
+    #     #     Si_in += str(i.Si) +','
    
-        self.data['T'].append(self.time)
-        self.data['Frame'].append(round(self.time * 2))
-        # self.data['Si_out'].append(Si_out[:-1])
-        self.data['pos'].append(pos[:-1])
-        # self.data['id_out'].append(id_out[:-1])
-        # self.data['Si_in'].append(Si_in[:-1])
-        # self.data['food_target'].append(target)
+    #     self.data['T'].append(self.time)
+    #     self.data['Frame'].append(round(self.time * 2))
+    #     # self.data['Si_out'].append(Si_out[:-1])
+    #     self.data['pos'].append(pos[:-1])
+    #     # self.data['id_out'].append(id_out[:-1])
+    #     # self.data['Si_in'].append(Si_in[:-1])
+    #     # self.data['food_target'].append(target)
    
-    def init_agents(self, **kwargs):
+    def init_agents(self, init_position, **kwargs):
      
         if 'g' in kwargs:
             
@@ -242,8 +276,13 @@ class Model(Model):
         #       'Total number of recruits: ', len(set(idx_listen)), flush = True)
             
         self.agents = {}
+        if init_position == 'random':
+            positions = random.sample(self.xy.keys(), self.N)
+        else:
+            positions = [nest] * self.N
         for i in range((N-1), -1, -1):
-            self.agents[i] = Ant(i, self, g=g[i], social=rec[i], mot_matrix=self.matrices[behav[i]])
+            self.agents[i] = Ant(i, self, g=g[i], social=rec[i], mot_matrix=self.matrices[behav[i]], behavior = behav[i],
+                                 init_position=positions[i])
 
     def set_default_movement(self, matrix = recruit_mov):
         for i in range(len(self.agents)):

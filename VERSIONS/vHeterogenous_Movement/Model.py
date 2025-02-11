@@ -78,13 +78,15 @@ class Model(Model):
             self.distance = 13
   
         # Agents
+        self.N = N
         self.init_agents(**kwargs)
             # self.agents[i] = Ant(i, self)
    
-          # states & rates
+        # states & rates
         self.states = {'alpha': list(self.agents.values()), 'beta': [], 'gamma': list(self.agents.values())}
-        self.S = np.array([N, 0, N])
+        self.S = np.array([self.N, 0, self.N])
         self.rates = np.array([alpha, beta, gamma])
+
   
         # Init first active agent
         self.agents[0].Si = np.random.uniform(0.0, 1.0)
@@ -263,39 +265,39 @@ class Model(Model):
                             g += list(np.random.beta(a = float(v1), b = float(v2), size = int(s)))
                         else:
                             g += list(np.random.uniform(low = float(v1), high = float(v2), size = int(s)))
-                if len(g) < N:
+                if len(g) < self.N:
                     print('Warning: Less gains than population size passed to parametrization')
-                    g += np.random.uniform(low = 0.0, high = 1.0, size = N - len(g))
-                elif len(g) > N:
+                    g += np.random.uniform(low = 0.0, high = 1.0, size = self.N - len(g))
+                elif len(g) > self.N:
                     print('Warning: More gains than population size passed to parametrization')
-                    g = g[:N]
+                    g = g[:self.N]
 
             except:
                 print('Warning: Values must be passed in a 4 sized list separated by commas.',
            '\n Switching to default behaviour in gain initialization')
-                g = np.random.uniform(low = 0.0, high = 1.0, size = N)
+                g = np.random.uniform(low = 0.0, high = 1.0, size = self.N)
      
         else:
-            g = np.random.uniform(low = 0.0, high = 1.0, size = N)  
+            g = np.random.uniform(low = 0.0, high = 1.0, size = self.N)  
             
         if self.rho < 0:
             self.rho = 0
 
-        nLR = round(N * self.rho)
-        nSR = N - nLR
-        indices = np.random.choice(N, size = nSR,replace=False)
+        nLR = round(self.N * self.rho)
+        nSR = self.N - nLR
+        indices = np.random.choice(self.N, size = nSR,replace=False)
         
-        behav = np.array(['scout'] * N, dtype = '<U7')
+        behav = np.array(['scout'] * self.N, dtype = '<U7')
         behav[indices] = 'recruit'
-        mask = np.ones(N, dtype = bool)
+        mask = np.ones(self.N, dtype = bool)
         mask[indices] = False
-        rec = np.array([False] * N)
+        rec = np.array([False] * self.N)
         
         
         # social feedbacks [LR]
         if self.feedback == 'scout':
             nlisten = round(nLR * self.epsilon) 
-            idx_listen = np.random.choice(np.array(list(range(N)))[mask], size = nlisten, replace = False)
+            idx_listen = np.random.choice(np.array(list(range(self.N)))[mask], size = nlisten, replace = False)
             
             
         # social feedbacks [LR]    
@@ -306,7 +308,7 @@ class Model(Model):
         # social feedbacks [Both]
         else:
             nlisten = round(nLR * (self.epsilon))
-            idx_listen = np.random.choice(np.array(list(range(N)))[mask], size = nlisten, replace = False)
+            idx_listen = np.random.choice(np.array(list(range(self.N)))[mask], size = nlisten, replace = False)
             nlisten = round(nSR * (self.epsilon))
             idx_listen = np.append(idx_listen, np.random.choice(indices, size = nlisten, replace = False))
             
@@ -316,7 +318,7 @@ class Model(Model):
         #       'Total number of recruits: ', len(set(idx_listen)), flush = True)
             
         self.agents = {}
-        for i in range((N-1), -1, -1):
+        for i in range((self.N-1), -1, -1):
             self.agents[i] = Ant(i, self, g=g[i], social=rec[i], mot_matrix=self.matrices[behav[i]], behavior=behav[i])
             
     ''' OLD VERSION OF init_agents'''
