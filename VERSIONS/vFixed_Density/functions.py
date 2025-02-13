@@ -214,7 +214,7 @@ def argparser(argv = sys.argv[1:]):
 
     parameters = {'filename': 'simulation',
                'runs': 1, 'results_path': '../results/',
-               'food_condition': 'det',
+               'food_condition': 'nf',
                'beta': beta, 'Jij': Jij,
                  'Theta': Theta}
 
