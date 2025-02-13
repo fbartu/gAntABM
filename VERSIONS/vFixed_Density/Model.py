@@ -17,7 +17,7 @@ class Model(Model):
 
     def __init__(self, beta = beta, Theta = Theta, Jij = Jij, N = N, 
               width = width, height = height, food_condition = food_condition, 
-              init_position = 'nest', **kwargs):
+              init_position = 'random', **kwargs):
 
         super().__init__()
         
@@ -34,7 +34,7 @@ class Model(Model):
             self.Jij = kwargs['Jij']
    
         if 'tmax' not in kwargs:
-            self.tmax = 100
+            self.tmax = 2000
         else:
             self.tmax = kwargs['tmax']
    

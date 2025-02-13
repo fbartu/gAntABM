@@ -206,10 +206,11 @@ def plot_arena(model, data = None, path = None):
 
 def argparser(argv = sys.argv[1:]):
         
-    opts, args = getopt.getopt(argv, 'n:d:x:f:p:g:s:',
+    opts, args = getopt.getopt(argv, 'n:d:x:f:p:g:s:i:',
                             ['nruns=', 'directory=', 'filename=', 
                                 'food=', 'parameters=',
-                            'gains=', 'social_feedbacks='])
+                            'gains=', 'social_feedbacks=',
+                            'init_pos='])
 
     parameters = {'filename': 'simulation',
                'runs': 1, 'results_path': '../results/',
@@ -226,6 +227,9 @@ def argparser(argv = sys.argv[1:]):
             
         elif opt in ('-x', '--filename'):
             parameters['filename'] = arg
+            
+        elif opt in ('-i', '--init_pos'):
+            parameters['init_position'] = arg
             
         elif opt in ('-f', '--food'):
             splarg = arg.split(',')
@@ -259,6 +263,8 @@ def argparser(argv = sys.argv[1:]):
                     parameters['rho'] = eval(x[1])
                 elif x[0] == 'epsilon':
                     parameters['epsilon'] = eval(x[1])
+                elif x[0] == 'init_position':
+                    parameters['init_position'] = str(x[1])
                 else:
                     print('Unknown parameter', x[0], flush= True)
                     try:
