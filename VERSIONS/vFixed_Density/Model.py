@@ -97,6 +97,7 @@ class Model(Model):
         self.food_condition = food_condition
         self.init_food()
         self.food_coords = [self.coords[i] for i in self.food_positions]
+        print(self.food_coords)
 
 # 		self.data = pd.DataFrame({'T': [], 'Frame': [],
 #    'N': [], 'Si_out': [], 'pos': [],
