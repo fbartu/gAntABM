@@ -40,6 +40,8 @@ class Model(Model):
             
         if 'init_position' not in kwargs:
             init_position = 'random'
+        else:
+            init_position = kwargs.pop('init_position')
    
         if 'feedback' not in kwargs:
             self.feedback = 'both'
