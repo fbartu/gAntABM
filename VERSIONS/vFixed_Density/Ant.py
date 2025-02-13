@@ -147,6 +147,9 @@ class Ant(Agent):
 				s.append(i.state)
 				z.append(self.model.Jij[self.state + "-" + i.state]* i.Si - self.model.Theta)
 				if hasattr(i, 'food_location'): t.append(self.model.coords[i.food_location])
+				# info transmission
+				if i.informed: self.informed = True
+
 				int_type += i.behavior_tag + '_' + i.movement + '+'
 
 			z = sum(z)
@@ -176,6 +179,8 @@ class Ant(Agent):
 				s.append(i.state)
 				z.append(self.model.Jij[self.state + "-" + i.state]* i.Si - self.model.Theta)
 				int_type += i.behavior_tag + '_' + i.movement + '+'
+				# info transmission
+				if i.informed: self.informed = True
 
 			z = sum(z)
    
