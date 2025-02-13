@@ -86,7 +86,7 @@ class Model(Model):
   
         # Agents
         self.N = N
-        self.init_agents(init_position, **kwargs)
+        self.init_agents('random', **kwargs)
             # self.agents[i] = Ant(i, self)
    
         # Init first active agent
