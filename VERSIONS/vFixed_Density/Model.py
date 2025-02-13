@@ -289,7 +289,6 @@ class Model(Model):
             positions = random.sample(list(self.xy.keys()), self.N)
         else:
             positions = [nest] * self.N
-        print(positions)
         for i in range((self.N-1), -1, -1):
             self.agents[i] = Ant(i, self, g=g[i], social=rec[i], mot_matrix=self.matrices[behav[i]], behavior = behav[i],
                                  init_position=positions[i])

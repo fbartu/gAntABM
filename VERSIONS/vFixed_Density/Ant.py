@@ -42,8 +42,6 @@ class Ant(Agent):
 	def reset_movement(self):
 		self.movement = 'default'
 		# self.move_history = (None, None, None)
-		print(self.init_position)
-		print(self.model.grid.get_neighbors(self.init_position))
 		self.move_history = (self.init_position, 
                        random.choice(self.model.grid.get_neighbors(self.init_position)),
                        self.init_position)
