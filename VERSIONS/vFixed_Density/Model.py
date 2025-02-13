@@ -17,7 +17,7 @@ class Model(Model):
 
     def __init__(self, beta = beta, Theta = Theta, Jij = Jij, N = N, 
               width = width, height = height, food_condition = food_condition, 
-              init_position = 'random', **kwargs):
+              **kwargs):
 
         super().__init__()
         
@@ -37,6 +37,9 @@ class Model(Model):
             self.tmax = 2000
         else:
             self.tmax = kwargs['tmax']
+            
+        if 'init_position' not in kwargs:
+            init_position = 'random'
    
         if 'feedback' not in kwargs:
             self.feedback = 'both'
