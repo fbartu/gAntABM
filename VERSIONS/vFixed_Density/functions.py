@@ -250,6 +250,8 @@ def argparser(argv = sys.argv[1:]):
                     parameters['beta'] = eval(x[1])
                 elif x[0] == 'gamma':
                     parameters['gamma'] = eval(x[1])
+                elif x[0] == 'N':
+                    parameters['N'] = int(x[1])
                 elif x[0] == 'Jij':
                     j = eval(x[1])
                     if type(j) == dict:
@@ -265,6 +267,7 @@ def argparser(argv = sys.argv[1:]):
                     parameters['epsilon'] = eval(x[1])
                 elif x[0] == 'init_position':
                     parameters['init_position'] = str(x[1])
+
                 else:
                     print('Unknown parameter', x[0], flush= True)
                     try:
