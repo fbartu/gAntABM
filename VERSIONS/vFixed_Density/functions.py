@@ -268,6 +268,9 @@ def argparser(argv = sys.argv[1:]):
                 elif x[0] == 'init_position':
                     parameters['init_position'] = str(x[1])
 
+                elif x[0] == 'tmax':
+                    parameters['tmax'] = eval(x[1])
+
                 else:
                     print('Unknown parameter', x[0], flush= True)
                     try:

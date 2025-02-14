@@ -157,40 +157,52 @@ class Model(Model):
             # get rng for next iteration
             self.sample_time()
             self.iters += 1
-            
-            
+
     def collect_data(self, int_type):
-        node = []
-        x = []
-        y = []
-        id = []
-        target = []
-        interaction = []
-        # information transfer
-        information = []
+        agent = self.agents[self.sampled_agent[-1]]
+        xy = self.xy[agent.pos]
+        self.data['T'].append(self.time)
+        self.data['id'].append(agent.unique_id)
+        self.data['int_type'].append(int_type)
+        self.data['node'].append(str(agent.pos))
+        self.data['x'].append(xy[0])
+        self.data['y'].append(xy[1])
+        self.data['movement'].append(agent.movement)
+        self.data['information'].append(agent.informed)
 
-        for i in self.agents.values():
-            node.append(str(i.pos))
-            xy = self.xy[i.pos]
-            x.append(xy[0])
-            y.append(xy[1])
-            target.append(i.movement)
-            id.append(i.unique_id)
-            if id[-1] == self.sampled_agent[-1]:
-                interaction.append(int_type)
-            else:
-                interaction.append('none_none')
-            information.append(i.informed)
+    """TOO LARGE FILES; UPDATING COLLECT DATA IN FAVOR OF A COMPRESSED VERSION"""
+    # def collect_data(self, int_type):
+    #     node = []
+    #     x = []
+    #     y = []
+    #     id = []
+    #     target = []
+    #     interaction = []
+    #     # information transfer
+    #     information = []
+
+    #     for i in self.agents.values():
+    #         node.append(str(i.pos))
+    #         xy = self.xy[i.pos]
+    #         x.append(xy[0])
+    #         y.append(xy[1])
+    #         target.append(i.movement)
+    #         id.append(i.unique_id)
+    #         if id[-1] == self.sampled_agent[-1]:
+    #             interaction.append(int_type)
+    #         else:
+    #             interaction.append('none_none')
+    #         information.append(i.informed)
 
 
-        self.data['T'].extend([self.time] * self.N)
-        self.data['id'].extend(id)
-        self.data['int_type'].extend(interaction)
-        self.data['node'].extend(node)
-        self.data['x'].extend(x)
-        self.data['y'].extend(y)
-        self.data['movement'].extend(target)
-        self.data['information'].extend(information)
+    #     self.data['T'].extend([self.time] * self.N)
+    #     self.data['id'].extend(id)
+    #     self.data['int_type'].extend(interaction)
+    #     self.data['node'].extend(node)
+    #     self.data['x'].extend(x)
+    #     self.data['y'].extend(y)
+    #     self.data['movement'].extend(target)
+    #     self.data['information'].extend(information)
 
     # def collect_data(self):
 
