@@ -1,292 +1,88 @@
+from mesa import space, Model, Agent
+from Food import Food
 import networkx as nx
-from mesa import space, Agent, Model
-import math
-import numpy as np
+from Ant import np, Ant, math, nest, dist
 import matplotlib.pyplot as plt
 import pandas as pd
-from functions import *
 from scipy.stats import pearsonr
-
-""""""""""""""""""
-""" PARAMETERS """
-""""""""""""""""""
-
-N = 100 # number of automata
-alpha = 4*10**-3 # rate of action in nest
-beta = 2 # rate of action in arena
-gamma = 10**-5 # spontaneous activation
-Theta = 10**-15 # baseline loss of activity (threshold 1)
-theta = 0 # threshold of activity (threshold 2)
-weight = 3 # integer >= 1, direction bias
-
-# Coupling coefficients
-# 0 - No info; 1 - Info
-Jij = {'0-0': 0.35, '0-1': 1,
-	   '1-0': 0.35, '1-1': 1} ## MATRIX WITH TWO G POPULATIONS
-
-""""""""""""""""""""""""""
-""" SPATIAL PARAMETERS """
-""""""""""""""""""""""""""
-nest = (0, 22)
-nest_influence = [nest, (1, 21), (1, 22), (1, 23)]          
-
-foodXvertex = 1
-
-#Lattice size
-width    = 22
-height   = 13
-
-
-""""""""""""""""""
-"""   CLASSES  """
-""""""""""""""""""
-
-''' ANT AGENT '''
-class Ant(Agent):
-
-	def __init__(self, unique_id, model):
-
-		super().__init__(unique_id, model)
-
-		self.Si = 0
-		self.g = np.random.uniform(0.0, 1.0)
-
-		self.is_active = False
-		self.state = '0'
-		self.status = 'gamma'
-
-		self.activity = {'t': [0], 'Si': [self.Si]}
-  
-		self.food = []
-
-		self.pos = 'nest'
-		self.movement = 'random'
-  
-		# self.last_move = None
-		self.path = []
-
-	# Move method
-	def move(self):
-
-		possible_steps = self.model.grid.get_neighbors(
-		self.pos,
-		include_center = False)
-  
-		l = list(range(len(possible_steps)))
-
-		if self.movement == 'random':
-			
-			idx = np.random.choice(l)
-	  
-		else:
-			d = [dist(self.target, self.model.coords[i]) for i in possible_steps]
-			idx = np.argmin(d)
-
-			v = 1 / (len(d) + weight - 1)
-			p = [weight / (len(d) + weight - 1) if i == idx else v for i in l]
-			idx = np.random.choice(l, p = p)
-
-		pos = possible_steps[idx]
-		self.model.grid.move_agent(self, pos)
- 
-	def reset_movement(self):
-		self.movement = 'random'
-
-	def find_neighbors(self):
-
-		if self.pos == 'nest':
-   
-			alist = self.model.states['alpha']
-
-		else:
-			alist = self.model.grid.get_cell_list_contents([self.pos])
-   
-		flist = list(filter(lambda a: a.unique_id != self.unique_id, alist))
-  
-		if len(flist):
-			neighbors = np.random.choice(flist, size = 1, replace = False)
-		else:
-			neighbors = []
-
-		return neighbors
-
-	def interaction(self):
-		neighbors = self.find_neighbors()
-
-		s = [] # state
-		z = [] # activity
-  
-		l = len(neighbors)
-		if l:
-			for i in neighbors:
-				s.append(i.state)
-				z.append(Jij[self.state + "-" + i.state]* i.Si - Theta)
-
-			z = sum(z)
-   
-			if self.pos in ['nest'] + nest_influence:
-				self.model.I.append(0)
-			else:
-				self.model.I.append(+1)
-	
-		else:
-			z = -Theta
-			self.model.I.append(0)
-		self.Si = math.tanh(self.g * (z + self.Si) ) # update activity
-	
-	def update_status(self):
-		self.check_status()
-		for i in self.model.states:
-			try:
-				self.model.states[i].remove(self)
-			except:
-				continue
-	
-		if self.status == 'gamma':
-			self.model.states['alpha'].append(self)
-			self.model.states['gamma'].append(self)
-   
-		else:
-			self.model.states[self.status].append(self)
-	
-	def check_status(self):
-		if self.is_active:
-			self.status = 'beta'
-		else:
-			if self.Si > theta:
-				self.status = 'alpha'
-			else:
-				self.status = 'gamma'
- 
-	def leave_nest(self):
-		self.model.grid.place_agent(self, nest)
-		self.is_active = True
-
-	def enter_nest(self):
-		self.model.remove_agent(self)
-		self.is_active = False
-		self.pos = 'nest'
-		self.ant2explore()
-
-	def ant2nest(self):
-		self.target = self.model.coords[nest]
-		self.movement = 'homing'
-
-	def ant2explore(self):
-		if hasattr(self, 'target'):
-			del self.target
-		self.reset_movement()
-
-	def pick_food(self):
-		self.model.remove_agent(self.model.food[self.pos][0])
-		self.food.append(self.model.food[self.pos].pop(0))
-		self.model.food[self.pos].extend(self.food)
-		self.model.food[self.pos][-1].collected(self.model.time)
-		self.model.food_dict[self.pos] -= 1
-		self.food_location = self.pos
-		self.state = '1'
-
-	def drop_food(self):
-		self.food.pop()
-  
-	def action(self, rate):
-		
-		if rate == 'alpha':
-			if len(self.food):
-				self.drop_food()
-			else:
-				if self.Si > theta:
-					self.leave_nest()
-
-		elif rate == 'beta':
-	  
-			if len(self.food) or self.Si < theta:
-				self.ant2nest()
-
-			if self.pos == nest:
-				if hasattr(self, 'target') and self.target == self.model.coords[nest]:
-					self.enter_nest()
-
-				else:
-					self.move()
-
-			elif self.pos in self.model.food_positions:
-	   
-				if self.model.food_dict[self.pos] > 0 and not len(self.food):
-					self.neighbors = self.find_neighbors()
-					self.pick_food()
-
-				else:
-					self.move()
-
-			else:
-				self.move()
-   
-		else:
-			self.Si = np.random.uniform(0.0, 1.0) ## spontaneous activation
-
-		self.interaction()
-		self.update_status()
-		self.activity['Si'].append(self.Si)
+from functions import rotate, moving_average, discretize_time, fill_hexagon, concatenate_values#, parse_states
+from parameters import N, alpha, beta, gamma, foodXvertex, food_condition, width, height, mot_matrix, Jij, Theta
 
 ''' MODEL '''
 class Model(Model):
 
-	def __init__(self, alpha = alpha, beta = beta, gamma = gamma, N = N, width = width, height = height):
+	def __init__(self, alpha = alpha, beta = beta, gamma = gamma, Theta = Theta, Jij = Jij, N = N, 
+              width = width, height = height, food_condition = food_condition, mot_matrix = mot_matrix, **kwargs):
 
 		super().__init__()
 
+		if 'Theta' not in kwargs:
+			self.Theta = Theta
+		else:
+			self.Theta = kwargs['Theta']
+   
+		if 'Jij' not in kwargs:
+			self.Jij = Jij
+		else:
+			self.Jij = kwargs['Jij']
+
+  
 		nds = [(0, i) for i in range(1, 44, 2)]
 
 		# Lattice
 		self.g = nx.hexagonal_lattice_graph(width, height, periodic = False)
 		[self.g.remove_node(i) for i in nds]
 		self.coords = nx.get_node_attributes(self.g, 'pos')
+		for i in self.coords:
+			self.coords[i] = tuple(np.round(self.coords[i], 5))
 		self.grid = space.NetworkGrid(self.g)
 		x = [xy[0] for xy in self.coords.values()]
 		y = [xy[1] for xy in self.coords.values()]
 		xy = [rotate(x[i], y[i], theta = math.pi / 2) for i in range(len(x))]
 		self.xy = dict(zip(self.coords.keys(), xy))
+		if 'd' in kwargs:
+			d = float(kwargs["d"])
+			if d < 0:
+				self.distance = 3
+			elif d > 26:
+				self.distance = 26
+			else:
+				self.distance = d
+		else:
+			self.distance = 13
   
 		# Agents
-		self.agents = {}
-		for i in range((N-1), -1, -1):
-			self.agents[i] = Ant(i, self)
-
+		self.init_agents(**kwargs)
+			# self.agents[i] = Ant(i, self)
+		self.mot_matrix = mot_matrix
    
-		# states & rates
+  		# states & rates
 		self.states = {'alpha': list(self.agents.values()), 'beta': [], 'gamma': list(self.agents.values())}
 		self.S = np.array([N, 0, N])
 		self.rates = np.array([alpha, beta, gamma])
   
+		# Init first active agent
 		self.agents[0].Si = np.random.uniform(0.0, 1.0)
 		self.agents[0].update_status()
+		# self.Si = [self.agents[0].Si / N]# [np.mean([i.Si for i in list(self.agents.values())])]
   
-		self.Si = [np.mean([i.Si for i in list(self.agents.values())])]
-
   		# Food
-		self.food_id = -1
-		self.food_in_nest = 0
-		if foodXvertex > 0:
-			nodes = np.array(list(self.xy.keys()))
-			food_indices = np.random.choice(len(self.xy), size = 12, replace = False)
-			self.food_positions = [tuple(x) for x in nodes[food_indices]]
-			self.food_dict = dict.fromkeys(self.food_positions, foodXvertex)
-			self.food = {}
-			for i in self.food_dict:
-				self.food[i] = [Food(i)] * foodXvertex
-				for x in range(foodXvertex):
-					self.grid.place_agent(self.food[i][x], i)
-					self.food[i][x].unique_id = self.food_id
-					self.food_id -= 1
-
-		else:
-			self.food = dict.fromkeys((), [np.nan])
+		self.food_condition = food_condition
+		self.init_food()
    
-		self.init_state = {'Si': [self.agents[i].Si for i in self.agents],
-					 'g': [self.agents[i].g for i in self.agents],
-					 'food': len(self.food), 'alpha': alpha, 'beta': beta,
-					 'gamma': gamma, 'N': N}
+		# self.init_state = {'Si': [self.agents[i].Si for i in self.agents],
+		# 			 'g': [self.agents[i].g for i in self.agents],
+		# 			 'food': str(list(self.food.keys())),'alpha': [alpha], 'beta': [beta],
+		# 			 'gamma': [gamma], 'N': [N]}
+		self.keys = pd.DataFrame({'id': [self.agents[i].unique_id for i in self.agents],
+               'g': [self.agents[i].g for i in self.agents]})
+  
+# 		self.data = pd.DataFrame({'T': [], 'Frame': [],
+#    'N': [], 'pos': [], 'Si_out': [],
+#    'state_out': [], 'id_out': [], 'Si_in': []})
+		self.data = pd.DataFrame({'T': [], 'Frame': [],
+   'N': [], 'Si_out': [], 'pos': [],
+   'state_out': [], 'id_out': [], 'Si_in': []})
 
 		# Rates
 		self.update_rates()
@@ -297,19 +93,31 @@ class Model(Model):
 		self.sample_time()
 
 		# Metrics
-		self.T = [0] # time
-		self.N = [0] # population
-		self.I = [0] # interactions
-		self.XY = dict(zip(list(self.coords.keys()), [0] *len(self.coords.keys())))
-		self.n = [np.mean([self.agents[i].Si for i in self.agents])]
-		self.o = [0]
-		self.gOut = [0]
-		self.gIn = [np.mean([self.agents[i].g for i in self.agents])]
-		self.iters = 0
-		self.a = [self.r[0]]
-		self.gamma_counter = 0
+		# self.T = [0] # time
+		# self.N = [0] # population
+		# self.I = [0] # interactions
+		# self.H = ['Inactive'] # ant states
+		# self.position_history = ['nest']
+		# self.ids = [-1]
 
-		self.sampled_agent = []
+		# self.SI = [0]
+		# self.XY = dict(zip(list(self.coords.keys()), [0] *len(self.coords.keys())))
+  
+		# self.n = [np.mean([self.agents[i].Si for i in self.agents])]
+		# self.o = [0]
+		# self.gOut = [0]
+		# self.gIn = [np.mean([self.agents[i].g for i in self.agents])]
+		self.iters = 0
+		# self.a = [self.r[0]]
+		self.gamma_counter = 0
+		self.init_nodes() ## initializes some metrics by node
+		# self.comm_count = 0 ## addition of target movement
+		# self.expl_count = 0
+  
+		self.report = pd.DataFrame({'T': [0], 'Si': [self.agents[0].Si], 'nest_active': [1], 
+                              'N': [0], 'Si_pc' : [self.agents[0].Si], 'p_active': [1/N]})
+
+		self.sampled_agent = [np.nan]
   
 	def update_rates(self):
 		self.S = np.array([len(i) for i in list(self.states.values())])
@@ -358,39 +166,269 @@ class Model(Model):
 
 			# do action
 			agent.action(process)
-   
-			self.N.append(len(self.states['beta']))
-
+			# self.position_history.append(agent.pos)
+			# self.SI.append(agent.Si)
+			# self.ids.append(agent.unique_id)
 			if agent.pos != 'nest':
-				self.XY[agent.pos] += 1
-			self.n.append(np.mean([i.Si for i in self.states['alpha']]))
-			self.o.append(np.mean([i.Si for i in self.states['beta']]))
-			self.gIn.append(np.mean([i.g for i in self.states['alpha']]))
-			self.gOut.append(np.mean([i.g for i in self.states['beta']]))
-			self.Si.append(np.mean([i.Si for i in list(self.agents.values())]))
+				# self.XY[agent.pos] += 1
+				self.nodes.loc[self.nodes['Node'] == agent.pos, 'Si'] += agent.Si
+			# self.H.append(agent.get_state())
+			self.collect_data()
    
 			self.update_rates()
 			self.rate2prob()
-   
-			self.a.append(self.r[0])
-
-			self.iters += 1
-
+			
 			# get time for next iteration
 			self.time += self.rng_t
-			self.T.append(self.time)
-			agent.activity['t'].append(self.time)
+			# self.T.append(self.time)
+			# agent.activity['t'].append(self.time)
 
 			# get rng for next iteration
 			self.sample_time()
+			self.iters += 1
+   
+   
+			# WORKING ON MACROSCOPIC MEASURES AND ORDER PARAMETERS 
+			# Si_nest = np.sum([i.Si for i in self.states['alpha']])
+			# N_nest = len(self.states['alpha'])
+			# self.report.loc[len(self.report)] = [self.T[-1], Si_nest,
+            #                             N_nest, self.N[-1], Si_nest / N_nest,
+            #                             np.sum([1 if i.Si > 0 else 0 for i in self.states['alpha']])/ N_nest]
 
+   
+	def collect_data(self):
+     
+# 		self.data = pd.DataFrame({'T': self.time, 'Frame': round(self.time * 2),
+#    'N': len(self.states['beta']), 'pos': [], 'Si_out': [],
+#    'g_out': [], 'state_out': [], 'id_out': [], 'Si_in': [],
+#    'g_in': [], 'id_in': []})
+
+  
+		pos = ''
+		Si_out = ''
+		Si_in = ''
+		# gIn = []
+		# gOut = []
+		s = ''
+		id_out = ''
+		for i in self.states['beta']:
+			pos += str(i.pos) + ';'
+			# pos.append(self.xy[i.pos])
+			# Si_out.append(i.Si)
+			Si_out += str(i.Si) + ','
+			# gOut.append(i.g)
+			# s.append(i.get_state())
+			s += str(i.get_state()) +','
+			# id_out.append(i.unique_id)
+			id_out += str(i.unique_id) +','
+   
+		for i in self.states['alpha']:
+			# gIn.append(i.g)
+			# Si_in.append(i.Si)
+			Si_in += str(i.Si) +','
+		self.data.loc[len(self.data)] = [self.time, round(self.time * 2), len(self.states['beta']),
+                                   Si_out[:-1], pos[:-1], s[:-1], id_out[:-1], Si_in[:-1]]   
+		# self.data.loc[len(self.data)] = [self.time, round(self.time * 2), len(self.states['beta']),
+        #                            pos[:-1], Si_out[:-1], s[:-1], id_out[:-1], Si_in[:-1]]
+   
+   
+		# self.n.append(np.mean([i.Si for i in self.states['alpha']]))
+		# self.o.append(np.mean([i.Si for i in self.states['beta']]))
+		# self.gIn.append(np.mean([i.g for i in self.states['alpha']]))
+		# self.gOut.append(np.mean([i.g for i in self.states['beta']]))
+		# self.Si.append(np.mean([i.Si for i in list(self.agents.values())]))
+		
+  
+  		# self.a.append(self.r[0])
+   
+	def init_agents(self, **kwargs):
+     
+		if 'default_movement' in kwargs:
+			dmove = kwargs['default_movement']
+		else:
+			dmove = 'random'
+   
+		if 'g' in kwargs:
+			
+			# must be passed as: size, type, value 1, value 2
+			# e.g. '75,N,0.5,0.2' -> 75 % of gaussian with mu = 0.5 and sigma = 0.2
+			# e.g. '25,B,0.5,0.5' -> 25 % of beta with shapes a = b = 0.5
+			code = kwargs['g'].split(':')
+			g = []
+			try:
+				for i in range(len(code)):
+						s, t, v1, v2 = code[i].split(',')
+						if t == 'N':
+							g += list(np.random.normal(loc = float(v1), scale = float(v2), size = int(s)))
+						elif t == 'B':
+							g += list(np.random.beta(a = float(v1), b = float(v2), size = int(s)))
+						else:
+							g += list(np.random.uniform(low = float(v1), high = float(v2), size = int(s)))
+				if len(g) < N:
+					print('Warning: Less gains than population size passed to parametrization')
+					g += np.random.uniform(low = 0.0, high = 1.0, size = N - len(g))
+				elif len(g) > N:
+					print('Warning: More gains than population size passed to parametrization')
+					g = g[:N]
+
+			except:
+				print('Warning: Values must be passed in a 4 sized list separated by commas.',
+           '\n Switching to default behaviour in gain initialization')
+				g = np.random.uniform(low = 0.0, high = 1.0, size = N)
+     
+		else:
+			g = np.random.uniform(low = 0.0, high = 1.0, size = N)
+   
+		if 'recruitment' in kwargs:
+			r = kwargs['recruitment']
+		else:
+			r = False
+
+		self.agents = {}
+		for i in range((N-1), -1, -1):
+			self.agents[i] = Ant(i, self, default_movement=dmove, g=g[i], recruitment=r)
+   
+	def init_food(self):
+     
+		self.food_in_nest = 0
+		if self.food_condition == 'det':
+			self.init_det()
+		elif self.food_condition == 'dist':
+			self.init_dist()
+		elif self.food_condition == 'sto_1':
+			self.init_sto()
+		elif self.food_condition == 'sto_2':
+			self.init_stoC()
+		elif self.food_condition == 'nf':
+			self.init_nf()
+		else:
+			print('No valid food conditions, initing non-clustered stochastic by default')
+			self.init_sto()
+			
+	def init_det(self):
+		self.food_positions = [(6, 33), (6, 34), (7, 34), # patch 1
+	(7, 33), (7, 32), (6, 32),
+	(6, 11), (6, 12), (7, 12), # patch 2
+	(7, 11), (7, 10), (6, 10)]
+		self.food_dict = dict.fromkeys(self.food_positions, foodXvertex)  
+		food_id = -1
+  
+		self.food = {}
+		for i in self.food_positions:
+			self.food[i] = [Food(i)] * foodXvertex
+			for x in range(foodXvertex):
+				self.grid.place_agent(self.food[i][x], i)
+				self.food[i][x].unique_id = food_id
+				food_id -= 1
+    
+	def init_dist(self):
+		tolerance = 1.5
+		food_id = -1
+		darray = np.array([dist(self.xy[i], self.xy[nest]) for i in self.xy])
+		idx = np.where((darray > (self.distance - tolerance)) & (darray < (self.distance + tolerance)))[0]
+
+		nodes = np.array(list(self.xy.keys()))
+		food_indices = np.random.choice(idx, size = 12, replace = False)
+		self.food_positions = [tuple(x) for x in nodes[food_indices]]
+		self.food_dict = dict.fromkeys(self.food_positions, foodXvertex)
+		self.food = {}
+		for i in self.food_dict:
+			self.food[i] = [Food(i)] * foodXvertex
+			for x in range(foodXvertex):
+				self.grid.place_agent(self.food[i][x], i)
+				self.food[i][x].unique_id = food_id
+				food_id -= 1
+    
+	def init_sto(self):
+		food_id = -1
+  
+		nodes = np.array(list(self.xy.keys()))
+		food_indices = np.random.choice(len(self.xy), size = 12, replace = False)
+		self.food_positions = [tuple(x) for x in nodes[food_indices]]
+		self.food_dict = dict.fromkeys(self.food_positions, foodXvertex)
+		self.food = {}
+		for i in self.food_dict:
+			self.food[i] = [Food(i)] * foodXvertex
+			for x in range(foodXvertex):
+				self.grid.place_agent(self.food[i][x], i)
+				self.food[i][x].unique_id = food_id
+				food_id -= 1
+    
+	def init_stoC(self):
+		food_id = -1
+  
+		nodes = np.array(list(filter(lambda a: self.xy[a][1] > 0.5, self.xy)))
+		food_indices = np.random.choice(len(nodes), size = 2, replace = False)
+		self.food_positions = [tuple(x) for x in nodes[food_indices]]
+		bl = [(i, j) for j in range(45, 2, -2) for i in range(1, 12, 2)] + [(i, j) for j in range(44, 1, -2) for i in range(2, 13, 2)]
+		clusters = []
+		for i in self.food_positions:
+			if i in bl:
+				clusters.extend(fill_hexagon(i))
+			else:
+				l = [dist(self.xy[i], self.xy[target]) for target in bl]
+				idx = np.argmin(l)
+				clusters.extend(fill_hexagon(bl[idx]))
+    
+		self.food_positions = clusters
+		self.food_dict = dict.fromkeys(self.food_positions, foodXvertex)
+		self.food = {}
+		for i in self.food_dict:
+			self.food[i] = [Food(i)] * foodXvertex
+			for x in range(foodXvertex):
+				self.grid.place_agent(self.food[i][x], i)
+				self.food[i][x].unique_id = food_id
+				food_id -= 1
+    
+	def init_nf(self):
+		self.food = dict.fromkeys((), [np.nan])
+		self.food_positions = []
+		self.food_dict = {}
 			
 	def run(self, tmax = 10800, plots = False):
 
 		self.step(tmax = tmax)
+  
+		print('+++ Model successfully run... Collecting results... +++', flush = True)
 		if plots:
 			self.plot_N()
-			# self.plot_I()
+   
+		self.z = [self.nodes.loc[self.nodes['Node'] == i, 'N'] for i in self.xy]
+		self.zq = np.unique(self.z, return_inverse = True)[1]
+		self.pos = pd.DataFrame({'node': list(self.xy.keys()), 'x': [x[0] for x in self.xy.values()],
+                          'y': [x[1] for x in self.xy.values()], 'z': self.zq})
+		try:
+			self.collect_results()
+			print('+++ Results collected successfully! +++', flush = True)
+		except:
+			Exception('Could not collect results')
+			print('Could not collect results', flush = True)
+
+  
+	def collect_results(self, fps = 2):
+     
+		# result = pd.DataFrame({'T': self.T, 'N': self.N, 'I': self.I, 'SiOut': self.o, 
+        #                  'pos': list(zip(self.sampled_agent, self.position_history)), 'S': self.H})
+		# result['Frame'] = result['T'] // (1 / fps)
+		# df = result.groupby('Frame').agg({'N': 'mean', 'I': 'sum', 'SiOut': 'mean', 'pos': concatenate_values, 'S': concatenate_values}).reset_index()
+  
+		result = pd.DataFrame({'T': self.data['T'], 'N': self.data['N']})
+		result['Frame'] = result['T'] // (1 / fps)
+		df = result.groupby('Frame').agg({'N': 'mean'}).reset_index()
+
+		# df['pos'] = result.groupby('Frame').agg({'pos': concatenate_values}).reset_index()['pos']
+		food = pd.DataFrame({'node': list(self.food.keys()),
+				't': [round(food.collection_time,3) if food.is_collected else np.nan for foodlist in self.food.values() for food in foodlist ]})
+  
+		self.df = df
+		self.food_df = food
+		# self.data = pd.DataFrame({'Frame': [round(i*2) for i in self.T], 'id': self.ids,
+        #                     'gNest': self.gIn, 'gArena': self.gOut,
+        #                     'states': self.H, 'si_out': self.Si, 'si_nest': self.n})
+        
+        
+		# e = parse_states(self)
+		# self.entropy = -np.sum([i * np.log(i) for i in e])
   
 	def run_food(self, tmax, plots = False):
 		n = sum(self.model.food_dict.values())
@@ -403,20 +441,64 @@ class Model(Model):
 			self.plot_N()
 			# self.plot_I()
 
-	def save_results(self, path):
+	def save_results(self, path, filename):
+     
+		try:
+			self.df.to_parquet(path + filename + '.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
+			print('Saved N', flush = True)
+		except:
+			Exception('Not saved!')
+			print('N not saved!', flush = True)
+   
+		try:
+			self.data.to_parquet(path + filename + '_data.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
+			print('Saved data', flush = True)
+		except:
+			Exception('Not saved!')
+			print('Data not saved!', flush = True)
+   
+		try:
+			self.food_df.to_parquet(path + filename + '_food.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
+			print('Saved food', flush = True)
+		except:
+			Exception('Not saved!')
+			print('Food not saved!', flush = True)
 
-		self.results = pd.DataFrame({'N': self.N, 'T': self.T, 'I':self.I})
-		self.results.to_csv(path + 'N.csv')
+		try:
+			self.pos.to_parquet(path + filename + '_positions.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
+			print('Saved positions', flush = True)
+		except:
+			Exception('Not saved!')
+			print('Positions not saved!', flush = True)
+
+		try:
+			self.keys.to_parquet(path + filename + '_keys.parquet', index=False, compression = 'gzip', engine = 'pyarrow')
+			print('Saved keys', flush = True)
+		except:
+			Exception('Not saved!')
+			print('Keys not saved!', flush = True)
+
+		# self.df.to_csv(path + filename + '.csv', index=False)
+		# self.data.to_csv(path + filename + '_data.csv', index=False)
+		# self.food_df.to_csv(path + filename + '_food.csv', index=False)
+		# self.pos.to_csv(path + filename + '_positions.csv', index=False)
+		# self.keys.to_csv(path + filename + '_keys.csv', index=False)		
+  
+  
+		# self.nodes.to_csv(path + filename + '_positions.csv', index=False)
 
 	def plot_lattice(self, z = None, labels = False):
-	 
-		if foodXvertex > 0:
+		
+		coordsfood = [self.xy[i] for i in self.food]
 
-			coordsfood = [self.xy[i] for i in self.food]
+		if self.food_condition == 'det' or self.food_condition == 'sto_2':
 
 			xyfood = [coordsfood[:6],coordsfood[6:]]
 			plt.fill([x[0] for x in xyfood[0]], [x[1] for x in xyfood[0]], c = 'grey')
 			plt.fill([x[0] for x in xyfood[1]], [x[1] for x in xyfood[1]], c = 'grey')
+   
+		elif self.food_condition == 'sto_1' or self.food_condition == 'dist':
+			plt.scatter([x[0] for x in coordsfood], [x[1] for x in coordsfood], c = 'grey', s = 200, alpha = 0.5)
 
 		if z is None:
 
@@ -429,7 +511,7 @@ class Model(Model):
 			v = list(self.xy.values())
 			for i, txt in enumerate(self.coords.keys()):
 				plt.annotate(txt, v[i])
-		plt.scatter(self.xy[nest][0], self.xy[nest][1], marker = '^', s = 50, c = 'black')
+		plt.scatter(self.xy[nest][0], self.xy[nest][1], marker = '^', s = 125, c = 'black')
 		plt.show()
   
 	def plot_trajectory(self, id):
@@ -495,6 +577,39 @@ class Model(Model):
 		plt.xlabel('Time (min)')
 		plt.ylabel('Cumulated interactions')
 		plt.xticks(list(range(0, 185, 15)))
+  
+	def init_nodes(self, chunks_x = 3 ,chunks_y = 2):
+		if not hasattr(self, 'nodes'):
+			xykeys = list(self.xy.keys())
+			keyarray = np.array(xykeys)
+			xyvals = list(self.xy.values())
+			xyarray = np.array(xyvals)
+			maxx = np.max([x[0] for x in xyarray])
+			minx = np.min([x[0] for x in xyarray])
+			maxy = np.max([x[1] for x in xyarray]) +0.1 # otherwise it does not catch the top vertices
+			miny = np.min([x[1] for x in xyarray])
+   
+			delta_x = (maxx - minx) / chunks_x
+			delta_y = (maxy - miny) / chunks_y
+			xcoords = [minx + delta_x * i for i in range(chunks_x)]
+			ycoords = [miny + delta_y * i for i in range(chunks_y)]
+			lims = [((j, i), (j+ delta_x, i + delta_y) ) for i in ycoords for j in xcoords]
+   
+			nodelist = [(xyarray[::, 0] >= i[0][0]) &
+                  (xyarray[::, 0] < i[1][0]) &
+                  (xyarray[::, 1] >= i[0][1] ) &
+                  (xyarray[::, 1] < i[1][1]) for i in lims]
+   
+			self.nodes = pd.DataFrame({'Node': [], 'Coords': [], 'Sector': []})
+			for i in range(len(nodelist)):
+				nds = [tuple(x) for x in xyarray[nodelist[i]]]
+				tags = [tuple(x) for x in keyarray[nodelist[i]]]
+				self.nodes = pd.concat([self.nodes, 
+                             pd.DataFrame({'Node': tags, 'Coords': nds, 'Sector': [i+1] * len(nds)})])
+    
+			self.nodes['N'] = 0
+			self.nodes['Si'] = float(0)
+
 
 	def depart_entry_correlation(self):
 
@@ -527,25 +642,3 @@ class Model(Model):
 		plt.xlabel('Nest departures')
 		plt.ylabel('Nest entries')
 		plt.show()
-  
-class Food:
-	
-	def __init__(self, pos):
-		self.state = '1'
-		self.Si = 1 # Interactions
-		self.initial_pos = pos
-		self.is_collected = False
-
-	def __repr__(self):
-		if self.is_collected:
-			t = self.collection_time /60
-			t = (int(t), round((t - int(t)) * 60))
-			msg = 'Food collected at %s minutes and %s seconds' % t
-		else:
-			msg = 'Food not collected yet!!'
-
-		return msg
-
-	def collected(self, time):
-		self.collection_time = time
-		self.is_collected = True
