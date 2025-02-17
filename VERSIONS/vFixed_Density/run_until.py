@@ -11,7 +11,9 @@ food_condition = parameters.pop('food_condition')
 results_path = os.path.expanduser(parameters.pop('results_path'))
 filename = parameters.pop('filename')
 runs = parameters.pop('runs')
-alpha, beta, gamma = parameters.pop('alpha'), parameters.pop('beta'), parameters.pop('gamma')
+beta = parameters.pop('beta')
+# alpha, beta, gamma = parameters.pop('alpha'), parameters.pop('beta'), parameters.pop('gamma')
+
 
 def run_model(i):
     pid = os.getpid()
@@ -21,10 +23,10 @@ def run_model(i):
     np.random.seed(seed)
 
     try:
-        m = Model.Model(alpha=alpha, beta=beta, gamma=gamma,
+        m = Model.Model(beta=beta,
                     food_condition= food_condition, **parameters)
         print('Model loaded', flush = True)
-        m.run_exploration()
+        m.run_until()
         print('Model successfully run', flush = True)
         m.save_results(results_path, filename + '_' + str(i))
         del m

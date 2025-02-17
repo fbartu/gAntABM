@@ -108,6 +108,7 @@ class Model(Model):
 #    'N': [], 'pos': [], 'food_target': [], 'id_out': []}
         self.data = {'T': [], 'id': [], 'int_type': [], 
                      'node': [], 'x': [], 'y': [], 'movement': [], 'information' : []}
+        self.info = [0] * self.N
 
 
         # Rates
@@ -169,6 +170,7 @@ class Model(Model):
         self.data['y'].append(xy[1])
         self.data['movement'].append(agent.movement)
         self.data['information'].append(agent.informed)
+        self.info[agent.unique_id] = agent.informed
 
     """TOO LARGE FILES; UPDATING COLLECT DATA IN FAVOR OF A COMPRESSED VERSION"""
     # def collect_data(self, int_type):
@@ -433,13 +435,12 @@ class Model(Model):
             Exception('Could not collect results')
             print('Could not collect results', flush = True)
             
-    def run_exploration(self, plots = False):
-        while sum([self.food[i][-1].is_detected for i in self.food]) == 0:
+    def run_until(self):
+        self.tmax = 0
+        while sum(self.info) < self.N:
             self.step(tmax = self.time + 1)
   
         print('+++ Model successfully run... Collecting results... +++', flush = True)
-        if plots:
-            self.plot_N()
    
         self.z = self.nodes['N']
         self.zq = np.unique(self.z, return_inverse = True)[1]
